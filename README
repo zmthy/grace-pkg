@@ -1,0 +1,18 @@
+A package manager for Minigrace.
+
+grace-pkg build [pkg]
+
+  Builds a package. With no arguments, builds the package in the current
+  directory. Given a URL, retrieves the package at that URL and build it.
+
+grace-pkg install [--global] [pkg]
+
+  Installs a package into the local package repository. With no arguments,
+  installs the package in the current directory. Given a URL, retrieves the
+  package at that URL and installs it.
+
+grace-pkg bundle [--static]
+
+  Bundles up the current directory into a tarball. The static flag will include
+  all dependencies in the bundle.
+
