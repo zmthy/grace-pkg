@@ -2,14 +2,14 @@ import "sys" as sys
 import "io" as io
 import "curl" as curl
 
-var imported
+var imported := []
 var toProcess := []
 var verbose := false
 var global := false
 var bundlePath := ""
 var baseUrl := ""
 var curFile
-var build := false
+
 var install := false
 
 parseArgs(sys.argv)
@@ -21,6 +21,9 @@ method parseArgs(args : List<String>) {
         print("in loop")
         on.option "get" do { toGet->
             doGet(toGet)
+        }
+        on.option "build" do { toBuild->
+            build(toBuild)
         }
         on.flag "list" do { 
             listInstalled()
@@ -44,7 +47,7 @@ method parseArgs(args : List<String>) {
         }
 
         on.flag "--build" do {
-            build := true;
+            //build := true;
         }
 
         on.flag "--install" do {
@@ -142,7 +145,7 @@ method doGet(impAddress){
     if ((impAddress.size >= 7) && (impAddress.substringFrom(1)to(7) == "http://"))then{
         setBaseUrl(impAddress)
         if (impAddress.substringFrom(impAddress.size-6)to(impAddress.size) == ".tar.gz")then{
-            getPackage(impAddress)
+            build(impAddress)
             return
         }
         
@@ -156,10 +159,16 @@ method doGet(impAddress){
     }
 }
 
-method getPackage(impAddress){
+method build(filepath){
+    var folderLoc := filepath.substringFrom(0)to(filepath.size-8)
+    print("FolderLoc = {folderLoc}")
+    //var folderName := removeContainingDir(folderLoc)
+    io.system("tar -zxvf {filepath}")
+    if (io.exists("{folderLoc}/pkg.grace"))then{
 
+        callSetup(folderLoc,"false");
 
-
+    }
 
 }
 
@@ -291,9 +300,12 @@ method validateFile(file) -> Boolean{
     return true
 }
 
-method write(file) -> Boolean{
+method write(file, location) -> Boolean{
     var usrDir := ""
-    if(global) then { 
+    if (location != "") then{
+        usrDir := location
+    }
+    elseif(global) then { 
        usrDir := "usr/lib/grace/modules/"
     }
     else{
@@ -611,11 +623,16 @@ method getContainingDirectory(st : String) -> String{
         return getBuildPath()++"/"
     }
     return st.substringFrom(0)to(last-1)
+}
+
+method package (folder :String){
+
+    callSetup(folder,"true");
 
 }
 
-method package (folder : String){
-    var setupFile := "~/Packagemanager/setup.grace"
+method callSetup (folder : String, bundle : String){
+    var setupFile := "~/grace-pkg/grace-pkg/src/setup.grace"
     var buildPath := getBuildPath()
     if (!io.exists(folder++"/pkg.grace"))then{
         print("Folder must contain pkg.grace file in order to create package")
@@ -625,18 +642,29 @@ method package (folder : String){
     open.close
     var loc := "{buildPath}/__pkg-temp"
     var create := io.open("{loc}","w")
-    pkgData := pkgData++"\ndef __bundle = true"
+    pkgData := pkgData++"\ndef __bundle = {bundle}"
     pkgData := pkgData++"\ndef __loc = \"{folder}\""
     create.write(pkgData) 
     create.close
     io.system("mv {loc} {loc}.grace")
-    print("build path = {buildPath} ++ minigrace")
+    print("build path = {buildPath}")
     io.system("cat {setupFile} | {buildPath}/minigrace")
 
     var suffix := [".grace",".gct",".gcn",".c"];
     for (suffix) do {s->
         io.system("rm {buildPath}/__pkg-temp{s}")
     }
+
+}
+
+method clearImports(){
+
+    imported := [];
+}
+
+method getImports(){
+
+    return imported;
 
 }
 
