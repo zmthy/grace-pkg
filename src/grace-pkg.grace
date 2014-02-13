@@ -162,12 +162,14 @@ method doGet(impAddress){
 method build(filepath){
     var folderLoc := filepath.substringFrom(0)to(filepath.size-8)
     print("FolderLoc = {folderLoc}")
-    //var folderName := removeContainingDir(folderLoc)
-    io.system("tar -zxvf {filepath}")
+    var buildPath := getBuildPath()
+    if (!io.exists("~/.lib/"))then{
+        io.system("mkdir ~/.lib/")
+    }
+    var homePath := sys.environ["HOME"]
+    io.system("tar -zxvf {filepath} --directory {homePath}/.lib/")
     if (io.exists("{folderLoc}/pkg.grace"))then{
-
         callSetup(folderLoc,"false");
-
     }
 
 }
@@ -176,15 +178,19 @@ method setBaseUrl(baseAddress: String){
     baseUrl := getBaseUrl(baseAddress)
 }
 
+class fileData.new{
+    var address is public
+    var data : String is public := ""
+}
+
 method setFile(fileAddress){
     if (fileAddress.substringFrom(fileAddress.size-5)to(fileAddress.size) == ".grace")then{
-        var file := object{
-            var address is public := fileAddress
-            var data is public
-        }
+        var file := fileData.new
+        file.address := fileAddress
         curFile := file
         return true
     }
+    print("Returning false")
     return false
 }
 
@@ -195,10 +201,12 @@ method fetchImports(fileAddress) -> Boolean{
             print("Could not retrieve file data")
             return false
         }
+        print("Validating file")
         if (validateFile(curFile))then{
             print("Pushing {curFile.address} to imported")
             imported.push(curFile)
             parseFile(curFile)
+            print("Finished parsing")
             while{toProcess.size > 0}do{ 
                 fetchImports(toProcess.pop)
             }
@@ -225,6 +233,7 @@ method performCurlFetch(file) -> Boolean{
             return false
         }
         file.data := d.decode("utf-8")
+        print(file.data)
         return true
     }
     req.perform
@@ -241,8 +250,8 @@ method setFileData(file) -> Boolean {
             }
             return false;
         }
-        return performCurlFetch(file)
-        
+        var result:= performCurlFetch(file)
+        return result
     }
     elseif (findExisting(file.address) != false)then{
         print("Now searching in find existing")
@@ -253,10 +262,8 @@ method setFileData(file) -> Boolean {
         }
     }
     elseif (baseUrl != "")then{
-
         file.address := baseUrl++file.address
         return performCurlFetch(file)
-
     }
     return false
 }
@@ -291,6 +298,10 @@ method findExisting(fileName){
 }
 
 method validateFile(file) -> Boolean{
+    print(file)
+    if (file.data == "")then{
+        return false
+    }
     if ((file.data.size)>1)then{
         if(file.data[1]=="<")then{
             print("Not a valid grace file")
